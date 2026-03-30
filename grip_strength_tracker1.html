@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>握力トラッカー</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0f13;
+    --surface: #16161d;
+    --surface2: #1e1e28;
+    --surface3: #252533;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0f0f5;
+    --text2: #9090a8;
+    --text3: #5a5a72;
+    --accent-r: #ff5f6d;
+    --accent-l: #4f8fff;
+    --accent-gold: #ffc947;
+    --accent-green: #3ecf8e;
+    --radius: 12px;
+    --radius-lg: 20px;
+  }
+
+  body {
+    font-family: 'Space Grotesk', 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  .app-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 60px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .app-header .logo {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo-icon {
+    width: 28px;
+    height: 28px;
+    background: linear-gradient(135deg, var(--accent-r), var(--accent-l));
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+
+  .nav-tabs {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+  }
+
+  .nav-tab {
+    background: none;
+    border: none;
+    color: var(--text2);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .nav-tab:hover { background: var(--surface2); color: var(--text); }
+  .nav-tab.active { background: var(--surface3); color: var(--text); }
+
+  .main {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 28px 20px 60px;
+  }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ===== CARDS ===== */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+  }
+
+  .card-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 16px;
+  }
+
+  /* ===== GRID ===== */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+  /* ===== RECORD FORM ===== */
+  .record-section { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
+
+  .grip-inputs { display: flex; flex-direction: column; gap: 20px; }
+
+  .hand-input-group {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    transition: border-color 0.2s;
+  }
+
+  .hand-input-group:focus-within { border-color: var(--border2); }
+
+  .hand-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .hand-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .hand-dot.right { background: var(--accent-r); }
+  .hand-dot.left { background: var(--accent-l); }
+
+  .kg-input-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .kg-input {
+    flex: 1;
+    background: var(--surface3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'Space Grotesk', monospace;
+    font-size: 28px;
+    font-weight: 500;
+    padding: 10px 16px;
+    text-align: right;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+
+  .kg-input:focus { border-color: var(--accent-l); }
+  .kg-input::placeholder { color: var(--text3); }
+
+  .kg-unit {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text2);
+    min-width: 28px;
+  }
+
+  /* Date picker */
+  .date-picker-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    flex: 1;
+  }
+
+  .cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .cal-month-label {
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .cal-nav {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 16px;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+  }
+
+  .cal-nav:hover { background: var(--surface3); }
+
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+
+  .cal-weekday {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text3);
+    text-align: center;
+    padding: 4px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .cal-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+
+  .cal-day:hover:not(.empty):not(.other-month) { background: var(--surface2); }
+  .cal-day.empty, .cal-day.other-month { color: var(--text3); cursor: default; }
+  .cal-day.today { font-weight: 600; color: var(--accent-gold); }
+  .cal-day.selected { background: var(--accent-l); color: white; font-weight: 600; }
+  .cal-day.has-data::after {
+    content: '';
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--accent-green);
+  }
+  .cal-day.selected.has-data::after { background: white; }
+
+  /* Selected date display */
+  .selected-date-display {
+    font-size: 13px;
+    color: var(--text2);
+    text-align: center;
+    padding: 10px 0 0;
+    border-top: 1px solid var(--border);
+    margin-top: 12px;
+  }
+
+  /* Submit button */
+  .btn-record {
+    width: 100%;
+    background: linear-gradient(135deg, var(--accent-r), #ff8c6d);
+    border: none;
+    border-radius: var(--radius);
+    color: white;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 8px;
+    letter-spacing: 0.3px;
+  }
+
+  .btn-record:hover { transform: translateY(-1px); filter: brightness(1.1); }
+  .btn-record:active { transform: translateY(0); }
+
+  /* Metric summary boxes */
+  .metric-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .metric-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.7px; }
+  .metric-val { font-size: 26px; font-weight: 600; font-family: 'Space Grotesk', monospace; }
+  .metric-sub { font-size: 12px; color: var(--text2); }
+  .val-r { color: var(--accent-r); }
+  .val-l { color: var(--accent-l); }
+  .val-g { color: var(--accent-green); }
+  .val-gold { color: var(--accent-gold); }
+
+  /* Chart area */
+  .chart-wrap {
+    position: relative;
+    width: 100%;
+    height: 280px;
+  }
+
+  /* Records list */
+  .record-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+
+  .record-item {
+    display: flex;
+    align-items: center;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    gap: 12px;
+    transition: border-color 0.15s;
+  }
+
+  .record-item:hover { border-color: var(--border2); }
+
+  .record-date {
+    font-size: 12px;
+    color: var(--text2);
+    min-width: 80px;
+  }
+
+  .record-values {
+    flex: 1;
+    display: flex;
+    gap: 16px;
+  }
+
+  .record-val-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'Space Grotesk', monospace;
+  }
+
+  .badge-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  .record-delete {
+    background: none;
+    border: none;
+    color: var(--text3);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+    border-radius: 6px;
+    transition: all 0.15s;
+  }
+
+  .record-delete:hover { background: rgba(255,95,109,0.15); color: var(--accent-r); }
+
+  /* Goal section */
+  .goal-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 22px;
+  }
+
+  .goal-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .goal-label { font-size: 14px; color: var(--text2); min-width: 60px; }
+
+  .goal-input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'Space Grotesk', monospace;
+    font-size: 20px;
+    font-weight: 500;
+    padding: 8px 14px;
+    text-align: right;
+    outline: none;
+    width: 120px;
+    transition: border-color 0.2s;
+  }
+
+  .goal-input:focus { border-color: var(--accent-gold); }
+
+  .goal-unit { font-size: 13px; color: var(--text2); }
+
+  .btn-save-goal {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 9px 18px;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-top: 8px;
+  }
+
+  .btn-save-goal:hover { background: var(--surface3); border-color: var(--accent-gold); color: var(--accent-gold); }
+
+  /* Progress bar */
+  .progress-bar-wrap { margin-top: 10px; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+  .progress-track { background: var(--surface3); border-radius: 4px; height: 8px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+  .fill-r { background: linear-gradient(90deg, var(--accent-r), #ff8c6d); }
+  .fill-l { background: linear-gradient(90deg, var(--accent-l), #6fcfff); }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface3);
+    border: 1px solid var(--accent-green);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 12px 20px;
+    z-index: 999;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.25s;
+    pointer-events: none;
+  }
+
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  /* Filter buttons */
+  .filter-btns {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .filter-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text2);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .filter-btn:hover { background: var(--surface3); color: var(--text); }
+  .filter-btn.active { background: var(--surface3); border-color: var(--accent-l); color: var(--accent-l); }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    color: var(--text3);
+    padding: 32px;
+    font-size: 14px;
+  }
+
+  .gap-16 { display: flex; flex-direction: column; gap: 16px; }
+  .mt-16 { margin-top: 16px; }
+  .mt-8 { margin-top: 8px; }
+
+  /* Chart legend */
+  .chart-legend {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--text2);
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-swatch { width: 20px; height: 3px; border-radius: 2px; }
+
+  @media (max-width: 720px) {
+    .record-section { grid-template-columns: 1fr; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .grid-3 { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="logo">
+    <div class="logo-icon">💪</div>
+    <span>GripTrack</span>
+  </div>
+  <nav class="nav-tabs">
+    <button class="nav-tab active" data-page="record">記録</button>
+    <button class="nav-tab" data-page="graph">グラフ</button>
+    <button class="nav-tab" data-page="history">履歴</button>
+    <button class="nav-tab" data-page="goal">目標</button>
+  </nav>
+</header>
+
+<main class="main">
+
+  <!-- ============ RECORD PAGE ============ -->
+  <div class="page active" id="page-record">
+    <div class="record-section">
+      <!-- Form -->
+      <div class="gap-16">
+        <div class="card">
+          <div class="card-title">測定値を入力</div>
+          <div class="grip-inputs">
+            <div class="hand-input-group">
+              <div class="hand-label">
+                <span class="hand-dot right"></span>
+                右手
+              </div>
+              <div class="kg-input-row">
+                <input type="number" class="kg-input" id="input-right" placeholder="0.0" step="0.1" min="0" max="200">
+                <span class="kg-unit">kg</span>
+              </div>
+            </div>
+            <div class="hand-input-group">
+              <div class="hand-label">
+                <span class="hand-dot left"></span>
+                左手
+              </div>
+              <div class="kg-input-row">
+                <input type="number" class="kg-input" id="input-left" placeholder="0.0" step="0.1" min="0" max="200">
+                <span class="kg-unit">kg</span>
+              </div>
+            </div>
+          </div>
+          <button class="btn-record" id="btn-record" style="margin-top:16px">記録する</button>
+        </div>
+
+        <!-- Summary -->
+        <div class="card">
+          <div class="card-title">最新記録</div>
+          <div class="grid-2">
+            <div class="metric-box">
+              <div class="metric-label">右手 最新</div>
+              <div class="metric-val val-r" id="latest-r">—</div>
+              <div class="metric-sub" id="latest-r-date">データなし</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">左手 最新</div>
+              <div class="metric-val val-l" id="latest-l">—</div>
+              <div class="metric-sub" id="latest-l-date">データなし</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">右手 最高</div>
+              <div class="metric-val val-gold" id="best-r">—</div>
+              <div class="metric-sub" id="best-r-date"></div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">左手 最高</div>
+              <div class="metric-val val-gold" id="best-l">—</div>
+              <div class="metric-sub" id="best-l-date"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Calendar -->
+      <div class="date-picker-wrap">
+        <div class="card-title">測定日を選択</div>
+        <div class="cal-header">
+          <button class="cal-nav" id="cal-prev">‹</button>
+          <div class="cal-month-label" id="cal-month-label">2025年1月</div>
+          <button class="cal-nav" id="cal-next">›</button>
+        </div>
+        <div class="cal-grid" id="cal-grid">
+          <div class="cal-weekday">日</div>
+          <div class="cal-weekday">月</div>
+          <div class="cal-weekday">火</div>
+          <div class="cal-weekday">水</div>
+          <div class="cal-weekday">木</div>
+          <div class="cal-weekday">金</div>
+          <div class="cal-weekday">土</div>
+        </div>
+        <div class="selected-date-display" id="selected-date-display">今日を選択中</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ GRAPH PAGE ============ -->
+  <div class="page" id="page-graph">
+    <div class="gap-16">
+      <div class="card">
+        <div class="section-header">
+          <div class="section-title">推移グラフ</div>
+          <div class="filter-btns">
+            <button class="filter-btn active" data-range="all">全期間</button>
+            <button class="filter-btn" data-range="30">30日</button>
+            <button class="filter-btn" data-range="90">90日</button>
+            <button class="filter-btn" data-range="180">180日</button>
+          </div>
+        </div>
+        <div class="chart-legend">
+          <div class="legend-item"><div class="legend-swatch" style="background:#ff5f6d"></div>右手</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#4f8fff"></div>左手</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#ffc947;border-top:2px dashed #ffc947;height:0"></div>目標</div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="trend-chart"></canvas>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div class="metric-box">
+          <div class="metric-label">平均（右）</div>
+          <div class="metric-val val-r" id="avg-r">—</div>
+          <div class="metric-sub">kg</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">平均（左）</div>
+          <div class="metric-val val-l" id="avg-l">—</div>
+          <div class="metric-sub">kg</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">記録回数</div>
+          <div class="metric-val val-g" id="total-count">0</div>
+          <div class="metric-sub">回</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">右左バランス</div>
+        <div class="chart-wrap" style="height:220px;">
+          <canvas id="balance-chart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ HISTORY PAGE ============ -->
+  <div class="page" id="page-history">
+    <div class="card">
+      <div class="section-header">
+        <div class="section-title">記録一覧</div>
+        <div class="filter-btns">
+          <button class="filter-btn active" data-sort="desc">新しい順</button>
+          <button class="filter-btn" data-sort="asc">古い順</button>
+        </div>
+      </div>
+      <div class="record-list" id="record-list">
+        <div class="empty-state">まだ記録がありません</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ GOAL PAGE ============ -->
+  <div class="page" id="page-goal">
+    <div class="gap-16">
+      <div class="goal-card">
+        <div class="card-title">目標設定</div>
+        <div class="goal-row">
+          <div class="goal-label" style="display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--accent-r);display:inline-block"></span>右手</div>
+          <input type="number" class="goal-input" id="goal-r" placeholder="40.0" step="0.1" min="0">
+          <span class="goal-unit">kg</span>
+        </div>
+        <div class="goal-row">
+          <div class="goal-label" style="display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--accent-l);display:inline-block"></span>左手</div>
+          <input type="number" class="goal-input" id="goal-l" placeholder="38.0" step="0.1" min="0">
+          <span class="goal-unit">kg</span>
+        </div>
+        <button class="btn-save-goal" id="btn-save-goal">目標を保存</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">達成状況</div>
+        <div class="gap-16">
+          <div>
+            <div class="progress-label">
+              <span style="display:flex;align-items:center;gap:6px;color:var(--accent-r)">右手</span>
+              <span id="progress-r-txt">—</span>
+            </div>
+            <div class="progress-track"><div class="progress-fill fill-r" id="progress-r" style="width:0%"></div></div>
+          </div>
+          <div>
+            <div class="progress-label">
+              <span style="display:flex;align-items:center;gap:6px;color:var(--accent-l)">左手</span>
+              <span id="progress-l-txt">—</span>
+            </div>
+            <div class="progress-track"><div class="progress-fill fill-l" id="progress-l" style="width:0%"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">パーセンタイル目安（成人男性）</div>
+        <div class="record-list" style="gap:6px">
+          <div class="record-item"><span class="record-date">優秀</span><span style="color:var(--accent-green);font-weight:600">50+ kg</span></div>
+          <div class="record-item"><span class="record-date">平均以上</span><span style="color:var(--accent-l);font-weight:600">40〜50 kg</span></div>
+          <div class="record-item"><span class="record-date">平均</span><span style="color:var(--text);font-weight:600">30〜40 kg</span></div>
+          <div class="record-item"><span class="record-date">要改善</span><span style="color:var(--accent-r);font-weight:600">30 kg 未満</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== DATA =====
+let records = JSON.parse(localStorage.getItem('grip_records') || '[]');
+let goals = JSON.parse(localStorage.getItem('grip_goals') || '{"right":null,"left":null}');
+
+let selectedDate = new Date();
+let calYear = selectedDate.getFullYear();
+let calMonth = selectedDate.getMonth();
+let chartRange = 'all';
+let sortOrder = 'desc';
+let trendChart = null, balanceChart = null;
+
+function saveRecords() { localStorage.setItem('grip_records', JSON.stringify(records)); }
+function saveGoals() { localStorage.setItem('grip_goals', JSON.stringify(goals)); }
+
+// ===== TOAST =====
+function showToast(msg, color = 'var(--accent-green)') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderColor = color;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ===== NAVIGATION =====
+document.querySelectorAll('.nav-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('page-' + btn.dataset.page).classList.add('active');
+    if (btn.dataset.page === 'graph') renderCharts();
+    if (btn.dataset.page === 'history') renderHistory();
+    if (btn.dataset.page === 'goal') renderGoalPage();
+  });
+});
+
+// ===== CALENDAR =====
+function formatDate(d) {
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
+function formatDateDisplay(d) {
+  if (!d) return '';
+  const dt = typeof d === 'string' ? new Date(d + 'T00:00:00') : d;
+  return `${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日`;
+}
+
+function getRecordDates() {
+  return new Set(records.map(r => r.date));
+}
+
+function renderCalendar() {
+  const grid = document.getElementById('cal-grid');
+  const label = document.getElementById('cal-month-label');
+  const selDisplay = document.getElementById('selected-date-display');
+
+  label.textContent = `${calYear}年${calMonth + 1}月`;
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = formatDate(new Date());
+  const selStr = formatDate(selectedDate);
+  const dataDates = getRecordDates();
+
+  // Keep weekday headers
+  const headers = Array.from(grid.querySelectorAll('.cal-weekday'));
+  grid.innerHTML = '';
+  headers.forEach(h => grid.appendChild(h));
+
+  for (let i = 0; i < firstDay; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cal-day empty';
+    grid.appendChild(cell);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const cell = document.createElement('div');
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    let cls = 'cal-day';
+    if (dateStr === today) cls += ' today';
+    if (dateStr === selStr) cls += ' selected';
+    if (dataDates.has(dateStr)) cls += ' has-data';
+    cell.className = cls;
+    cell.textContent = d;
+    cell.addEventListener('click', () => {
+      selectedDate = new Date(calYear, calMonth, d);
+      renderCalendar();
+    });
+    grid.appendChild(cell);
+  }
+
+  selDisplay.textContent = `${formatDateDisplay(selectedDate)} を選択中`;
+}
+
+document.getElementById('cal-prev').addEventListener('click', () => {
+  calMonth--;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCalendar();
+});
+
+document.getElementById('cal-next').addEventListener('click', () => {
+  calMonth++;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderCalendar();
+});
+
+// ===== RECORD =====
+document.getElementById('btn-record').addEventListener('click', () => {
+  const r = parseFloat(document.getElementById('input-right').value);
+  const l = parseFloat(document.getElementById('input-left').value);
+  if (isNaN(r) && isNaN(l)) { showToast('数値を入力してください', 'var(--accent-r)'); return; }
+
+  const dateStr = formatDate(selectedDate);
+  const existing = records.findIndex(x => x.date === dateStr);
+
+  const entry = { date: dateStr, right: isNaN(r) ? null : r, left: isNaN(l) ? null : l };
+
+  if (existing >= 0) {
+    records[existing] = entry;
+    showToast('記録を更新しました ✓');
+  } else {
+    records.push(entry);
+    records.sort((a,b) => a.date.localeCompare(b.date));
+    showToast('記録しました ✓');
+  }
+
+  saveRecords();
+  document.getElementById('input-right').value = '';
+  document.getElementById('input-left').value = '';
+  renderCalendar();
+  renderSummary();
+});
+
+// Pre-fill form if date already has data
+function updateFormForDate() {
+  const dateStr = formatDate(selectedDate);
+  const rec = records.find(r => r.date === dateStr);
+  document.getElementById('input-right').value = rec && rec.right !== null ? rec.right : '';
+  document.getElementById('input-left').value = rec && rec.left !== null ? rec.left : '';
+}
+
+// Watch for date changes
+const origRenderCalendar = renderCalendar;
+function renderCalendarWrapped() {
+  origRenderCalendar();
+  updateFormForDate();
+}
+
+// ===== SUMMARY =====
+function renderSummary() {
+  const rs = records.filter(r => r.right !== null).map(r => ({val: r.right, date: r.date}));
+  const ls = records.filter(r => r.left !== null).map(r => ({val: r.left, date: r.date}));
+
+  if (rs.length) {
+    const latest = rs[rs.length-1];
+    document.getElementById('latest-r').textContent = latest.val.toFixed(1) + ' kg';
+    document.getElementById('latest-r-date').textContent = formatDateDisplay(latest.date);
+    const best = rs.reduce((a,b) => a.val >= b.val ? a : b);
+    document.getElementById('best-r').textContent = best.val.toFixed(1) + ' kg';
+    document.getElementById('best-r-date').textContent = formatDateDisplay(best.date);
+  } else {
+    document.getElementById('latest-r').textContent = '—';
+    document.getElementById('latest-r-date').textContent = 'データなし';
+    document.getElementById('best-r').textContent = '—';
+    document.getElementById('best-r-date').textContent = '';
+  }
+
+  if (ls.length) {
+    const latest = ls[ls.length-1];
+    document.getElementById('latest-l').textContent = latest.val.toFixed(1) + ' kg';
+    document.getElementById('latest-l-date').textContent = formatDateDisplay(latest.date);
+    const best = ls.reduce((a,b) => a.val >= b.val ? a : b);
+    document.getElementById('best-l').textContent = best.val.toFixed(1) + ' kg';
+    document.getElementById('best-l-date').textContent = formatDateDisplay(best.date);
+  } else {
+    document.getElementById('latest-l').textContent = '—';
+    document.getElementById('latest-l-date').textContent = 'データなし';
+    document.getElementById('best-l').textContent = '—';
+    document.getElementById('best-l-date').textContent = '';
+  }
+}
+
+// ===== CHARTS =====
+function getFilteredRecords() {
+  if (chartRange === 'all') return records;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - parseInt(chartRange));
+  const cutStr = formatDate(cutoff);
+  return records.filter(r => r.date >= cutStr);
+}
+
+function renderCharts() {
+  const data = getFilteredRecords();
+  const labels = data.map(r => {
+    const d = new Date(r.date + 'T00:00:00');
+    return `${d.getMonth()+1}/${d.getDate()}`;
+  });
+
+  const rVals = data.map(r => r.right);
+  const lVals = data.map(r => r.left);
+
+  // Trend chart
+  const trendCtx = document.getElementById('trend-chart').getContext('2d');
+  if (trendChart) trendChart.destroy();
+
+  const datasets = [
+    {
+      label: '右手',
+      data: rVals,
+      borderColor: '#ff5f6d',
+      backgroundColor: 'rgba(255,95,109,0.08)',
+      borderWidth: 2,
+      pointRadius: rVals.length <= 20 ? 4 : 2,
+      pointHoverRadius: 6,
+      tension: 0.35,
+      fill: true,
+      spanGaps: true,
+    },
+    {
+      label: '左手',
+      data: lVals,
+      borderColor: '#4f8fff',
+      backgroundColor: 'rgba(79,143,255,0.08)',
+      borderWidth: 2,
+      pointRadius: lVals.length <= 20 ? 4 : 2,
+      pointHoverRadius: 6,
+      tension: 0.35,
+      fill: true,
+      spanGaps: true,
+    }
+  ];
+
+  const allVals = [...rVals, ...lVals].filter(v => v !== null);
+  const minVal = allVals.length ? Math.max(0, Math.min(...allVals) - 5) : 0;
+  const maxVal = allVals.length ? Math.max(...allVals) + 5 : 60;
+
+  if (goals.right) {
+    datasets.push({
+      label: '目標（右）',
+      data: data.map(() => goals.right),
+      borderColor: '#ffc947',
+      borderWidth: 1.5,
+      borderDash: [6, 3],
+      pointRadius: 0,
+      fill: false,
+    });
+  }
+
+  trendChart = new Chart(trendCtx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1e1e28',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          titleColor: '#9090a8',
+          bodyColor: '#f0f0f5',
+          callbacks: {
+            label: ctx => {
+              const v = ctx.raw;
+              if (v === null) return `${ctx.dataset.label}: —`;
+              return `${ctx.dataset.label}: ${v.toFixed(1)} kg`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#5a5a72', font: { size: 11 }, maxTicksLimit: 10 },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          border: { color: 'rgba(255,255,255,0.06)' }
+        },
+        y: {
+          min: minVal,
+          max: maxVal,
+          ticks: { color: '#5a5a72', font: { size: 11 }, callback: v => v.toFixed(0) + ' kg' },
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          border: { color: 'rgba(255,255,255,0.06)' }
+        }
+      }
+    }
+  });
+
+  // Stats
+  const rs = data.filter(r => r.right !== null).map(r => r.right);
+  const ls = data.filter(r => r.left !== null).map(r => r.left);
+  document.getElementById('avg-r').textContent = rs.length ? (rs.reduce((a,b) => a+b, 0) / rs.length).toFixed(1) + ' kg' : '—';
+  document.getElementById('avg-l').textContent = ls.length ? (ls.reduce((a,b) => a+b, 0) / ls.length).toFixed(1) + ' kg' : '—';
+  document.getElementById('total-count').textContent = data.length;
+
+  // Balance chart
+  renderBalanceChart(data);
+}
+
+function renderBalanceChart(data) {
+  const balCtx = document.getElementById('balance-chart').getContext('2d');
+  if (balanceChart) balanceChart.destroy();
+
+  const both = data.filter(r => r.right !== null && r.left !== null);
+  if (!both.length) return;
+
+  const labels = both.map(r => {
+    const d = new Date(r.date + 'T00:00:00');
+    return `${d.getMonth()+1}/${d.getDate()}`;
+  });
+
+  const diffs = both.map(r => parseFloat((r.right - r.left).toFixed(1)));
+
+  balanceChart = new Chart(balCtx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: '右手 − 左手（差）',
+        data: diffs,
+        backgroundColor: diffs.map(d => d >= 0 ? 'rgba(255,95,109,0.7)' : 'rgba(79,143,255,0.7)'),
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1e1e28',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          bodyColor: '#f0f0f5',
+          callbacks: {
+            label: ctx => `差: ${ctx.raw > 0 ? '+' : ''}${ctx.raw.toFixed(1)} kg`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#5a5a72', font: { size: 11 }, maxTicksLimit: 10 }, grid: { display: false } },
+        y: {
+          ticks: { color: '#5a5a72', font: { size: 11 }, callback: v => (v > 0 ? '+' : '') + v.toFixed(0) },
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          border: { display: false }
+        }
+      }
+    }
+  });
+}
+
+// Filter buttons for charts
+document.querySelectorAll('.filter-btn[data-range]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn[data-range]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    chartRange = btn.dataset.range;
+    renderCharts();
+  });
+});
+
+// ===== HISTORY =====
+function renderHistory() {
+  const list = document.getElementById('record-list');
+  let sorted = [...records];
+  if (sortOrder === 'desc') sorted.reverse();
+
+  if (!sorted.length) {
+    list.innerHTML = '<div class="empty-state">まだ記録がありません</div>';
+    return;
+  }
+
+  list.innerHTML = sorted.map(r => `
+    <div class="record-item">
+      <div class="record-date">${formatDateDisplay(r.date)}</div>
+      <div class="record-values">
+        <div class="record-val-badge">
+          <span class="badge-dot" style="background:var(--accent-r)"></span>
+          ${r.right !== null ? r.right.toFixed(1) + ' kg' : '—'}
+        </div>
+        <div class="record-val-badge">
+          <span class="badge-dot" style="background:var(--accent-l)"></span>
+          ${r.left !== null ? r.left.toFixed(1) + ' kg' : '—'}
+        </div>
+        ${r.right !== null && r.left !== null ? `<div class="record-val-badge" style="color:var(--text3);font-size:12px;">差: ${(r.right - r.left).toFixed(1)} kg</div>` : ''}
+      </div>
+      <button class="record-delete" data-date="${r.date}" title="削除">✕</button>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.record-delete').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const d = btn.dataset.date;
+      if (confirm(`${formatDateDisplay(d)} の記録を削除しますか？`)) {
+        records = records.filter(r => r.date !== d);
+        saveRecords();
+        renderHistory();
+        renderSummary();
+        renderCalendar();
+        showToast('削除しました', 'var(--accent-r)');
+      }
+    });
+  });
+}
+
+document.querySelectorAll('.filter-btn[data-sort]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn[data-sort]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    sortOrder = btn.dataset.sort;
+    renderHistory();
+  });
+});
+
+// ===== GOAL =====
+function renderGoalPage() {
+  if (goals.right) document.getElementById('goal-r').value = goals.right;
+  if (goals.left) document.getElementById('goal-l').value = goals.left;
+
+  const latestR = records.filter(r => r.right !== null);
+  const latestL = records.filter(r => r.left !== null);
+  const curR = latestR.length ? latestR[latestR.length-1].right : null;
+  const curL = latestL.length ? latestL[latestL.length-1].left : null;
+
+  if (goals.right && curR !== null) {
+    const pct = Math.min(100, (curR / goals.right) * 100);
+    document.getElementById('progress-r').style.width = pct.toFixed(0) + '%';
+    document.getElementById('progress-r-txt').textContent = `${curR.toFixed(1)} / ${goals.right} kg (${pct.toFixed(0)}%)`;
+  } else {
+    document.getElementById('progress-r').style.width = '0%';
+    document.getElementById('progress-r-txt').textContent = goals.right ? `目標: ${goals.right} kg` : '目標未設定';
+  }
+
+  if (goals.left && curL !== null) {
+    const pct = Math.min(100, (curL / goals.left) * 100);
+    document.getElementById('progress-l').style.width = pct.toFixed(0) + '%';
+    document.getElementById('progress-l-txt').textContent = `${curL.toFixed(1)} / ${goals.left} kg (${pct.toFixed(0)}%)`;
+  } else {
+    document.getElementById('progress-l').style.width = '0%';
+    document.getElementById('progress-l-txt').textContent = goals.left ? `目標: ${goals.left} kg` : '目標未設定';
+  }
+}
+
+document.getElementById('btn-save-goal').addEventListener('click', () => {
+  const gr = parseFloat(document.getElementById('goal-r').value);
+  const gl = parseFloat(document.getElementById('goal-l').value);
+  goals.right = isNaN(gr) ? null : gr;
+  goals.left = isNaN(gl) ? null : gl;
+  saveGoals();
+  renderGoalPage();
+  showToast('目標を保存しました ✓', 'var(--accent-gold)');
+});
+
+// ===== INIT =====
+renderCalendarWrapped();
+renderSummary();
+</script>
+</body>
+</html>
